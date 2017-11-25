@@ -20,7 +20,7 @@
 #include <epicsExport.h>
 #include <errlog.h>
 
-#define MAX_NUM_CHIPS 2
+#define MAX_NUM_PORTS 4
 
 #define DESIRED_MODE 1
 #define DESIRED_BITS 8
@@ -37,19 +37,20 @@
 #define Z3 (4 * RTD_B) / R_NOM)
 #define Z4 (2 * RTD_B)
 
-typedef struct chip {
-    unsigned char ce;
+typedef struct port {
+    unsigned char bus;
+    unsigned char chipSelect;
     unsigned char mode;
     unsigned char bits;
     unsigned int  speed;
     unsigned char present;
     int fd;
-} chip;
+} port;
 
-static struct chip chips[MAX_NUM_CHIPS];
+static struct port ports[MAX_NUM_PORTS];
 
-int max31865Config(unsigned char ce, unsigned char mode,
-                   unsigned char bits, unsigned int speed);
+int max31865Config(unsigned char bus, unsigned char chipSelect,
+		   unsigned char mode, unsigned char bits, unsigned int speed);
 static long report(int level);
 static long init(int pass);
 static long init_ai(struct aiRecord *pr);
@@ -75,33 +76,37 @@ struct {
 
 epicsExportAddress(dset, devAiMax31865);
 
-int spi_xfer(int ce, char *tx, char *rx, int n) {
+int spi_xfer(unsigned char bus, unsigned char chipSelect,
+             char *tx, char *rx, int n) {
+    unsigned char port = (bus << 1) | chipSelect;
     struct spi_ioc_transfer tr = {
         .tx_buf = (unsigned long)tx,
         .rx_buf = (unsigned long)rx,
         .len = n,
         .delay_usecs = 0,
-        .speed_hz = chips[ce].speed,
-        .bits_per_word = chips[ce].bits,
+        .speed_hz = ports[port].speed,
+        .bits_per_word = ports[port].bits,
     };
 
-    return ioctl(chips[ce].fd, SPI_IOC_MESSAGE(1), &tr);
+    return ioctl(ports[port].fd, SPI_IOC_MESSAGE(1), &tr);
 }
 
-int spi_init(int ce) {
+int spi_init(unsigned char bus, unsigned char chipSelect) {
     int ret;
     int fd;
     unsigned char mode;
     unsigned char bits;
     unsigned int speed;
 
-    if (chips[ce].present) {
+    unsigned char port = (bus << 1) | chipSelect;
+
+    if (ports[port].present) {
         return 0;
     }
 
     /* Open SPIDEV Device */
     char device[16];
-    sprintf(device, "/dev/spidev0.%d", ce);
+    sprintf(device, "/dev/spidev%d.%d", bus, chipSelect);
     fd = open(device, O_RDWR);
     if (fd < 0) return 1;
 
@@ -132,15 +137,15 @@ int spi_init(int ce) {
     if (ret == -1) return 1;
     if (speed != DESIRED_SPEED) return 1;
 
-    chips[ce].fd = fd;
-    chips[ce].mode = mode;
-    chips[ce].bits = bits;
-    chips[ce].speed = speed;
-    chips[ce].present = 1;
+    ports[port].fd = fd;
+    ports[port].mode = mode;
+    ports[port].bits = bits;
+    ports[port].speed = speed;
+    ports[port].present = 1;
 
     /* Config MAX31865 to auto sample */
     char rx[2] = {0,};
-    ret = spi_xfer(ce, "\x80\xd0", rx, 2);
+    ret = spi_xfer(bus, chipSelect, "\x80\xd0", rx, 2);
     if (ret < 1) return 1;
 
     return 0;
@@ -151,13 +156,11 @@ static long report(int level) {
 }
 
 static long init(int pass) {
-    epicsPrintf("init (pass=%d)\n", pass);
     return 0;
 }
 
 static long init_ai(struct aiRecord *pr) {
     struct vmeio *pvmeio;
-    epicsPrintf("init_ai\n");
 
     if (pr->inp.type != VME_IO) {
         recGblRecordError(S_db_badField, (void *)pr,
@@ -167,41 +170,51 @@ static long init_ai(struct aiRecord *pr) {
 
     pvmeio = (struct vmeio *) &pr->inp.value;
 
-    if ( (pvmeio->card < 0) || (pvmeio->card >= MAX_NUM_CHIPS) ) {
+    unsigned char bus = pvmeio->card;
+    unsigned char chipSelect = pvmeio->signal;
+    unsigned char port = (bus << 1) | chipSelect;
+
+    if ( (port < 0) || (port >= MAX_NUM_PORTS) ) {
         recGblRecordError(S_db_badField, (void *)pr,
                           "devMax31865: (init_record) Illegal INP field");
         return(S_db_badField);
     }
 
-    if (spi_init(pvmeio->card) ) {
+    if (spi_init(bus, chipSelect) ) {
         recGblRecordError(S_db_notInit, (void *)pr,
                           "devMax31865: (init_record) Error in spi_init");
         return(S_db_notInit);
     }
-
-    epicsPrintf("devMax31865: (init_record) %s\n", pvmeio->parm);
 
     return 0;
 }
 
 static long read_ai(struct aiRecord *pr) {
     int ret;
-    int ce = pr->inp.value.vmeio.card;
-    char units = pr->inp.value.vmeio.parm[0];
+    float resistance, celsius, fahrenheit;
+    unsigned char bus = pr->inp.value.vmeio.card;
+    unsigned char chipSelect = pr->inp.value.vmeio.signal;
+    char signal = pr->inp.value.vmeio.parm[0];
 
     /* Read the MAX31865 RTD registers */
     char rx[3] = {0,};
-    ret = spi_xfer(ce, "\x01\x00\x00", rx, 3);
+    ret = spi_xfer(bus, chipSelect, "\x01\x00\x00", rx, 3);
     if (ret < 1) return -1;
 
-    float r = ((rx[1] << 7) + (rx[2] >> 1)) / 32768.0 * R_REF;
-    float t = (sqrt(Z2 + (Z3*r)) + Z1) / Z4;
-    
-    if ( (units == 'f') || (units == 'F') ) { 
-        t = t * 9/5 + 32;
+    resistance = ((rx[1] << 7) + (rx[2] >> 1)) / 32768.0 * R_REF;
+    celsius = (sqrt(Z2 + (Z3*resistance)) + Z1) / Z4;
+    fahrenheit = celsius * 9/5 + 32;
+
+    if ( (signal == 'r') || (signal == 'R') ) {
+	pr->val = resistance;
+    } else if ( (signal == 'c') || (signal == 'C') ) {
+	pr->val = celsius;
+    } else if ( (signal == 'f') || (signal == 'F') ) {
+	pr->val = fahrenheit;
+    } else {
+	return -1;
     }
              
-    pr->val = t;
     pr->udf = 0;
     return 2;
 }
