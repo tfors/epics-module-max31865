@@ -39,9 +39,9 @@ drvAsynMAX31865::drvAsynMAX31865(const char* portName, unsigned char spiBus,
     : drvAsynSPI(portName, spiBus, spiChipSel, spiMode, spiBits, spiSpeed,
                  1, /* maxAddr */
                     /* Interface mask */
-                 (asynFloat64Mask | asynFloat64ArrayMask | asynDrvUserMask),
+                 (asynFloat64Mask | asynDrvUserMask),
                     /* Interrupt mask */
-                 (asynFloat64Mask | asynFloat64ArrayMask),
+                 (asynFloat64Mask),
                  0, /* asynFlags (does not block and is not multi-device) */
                  1, /* Autoconnect */
                  0, /* Default priority */
