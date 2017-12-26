@@ -1,1 +1,0 @@
-device(ai, VME_IO, devAiMax31865, "MAX31865")

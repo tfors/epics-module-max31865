@@ -1,23 +1,8 @@
-record(ai, "$(P)$(R)TempFast") {
-    field(DTYP, "MAX31865")
-    field(INP,  "#C0 S0 @F")
-    field(SCAN, ".05 second")
-    field(PREC, "3")
-    field(FLNK, "$(P)$(R)Temp")
-}
-
-record(ai, "$(P)$(R)Temp") {
-    field(INP,  "$(P)$(R)TempFast NPP NMS")
-    field(SMOO, "0.983")
-    field(MDEL, "0.1")
+record(ai, "$(P)$(R)Temperature") {
+    field(DTYP, "asynFloat64")
+    field(INP,  "@asyn($(PORT)) Temperature(F)")
+    field(MDEL, "0.1"
     field(PREC, "1")
-    field(FLNK, "$(P)$(R)Temp2")
+    field(SCAN, "I/O Intr")
+    field(EGU,  "F")
 }
-
-record(ai, "$(P)$(R)Temp2") {
-    field(INP,  "$(P)$(R)TempFast NPP NMS")
-    field(SMOO, "0.983")
-    field(MDEL, "0.01")
-    field(PREC, "2")
-}
-
