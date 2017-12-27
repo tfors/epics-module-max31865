@@ -1,7 +1,7 @@
 record(ai, "$(P)$(R)Temperature") {
     field(DTYP, "asynFloat64")
     field(INP,  "@asyn($(PORT)) Temperature(F)")
-    field(MDEL, "0.1"
+    field(MDEL, "0.1")
     field(PREC, "1")
     field(SCAN, "I/O Intr")
     field(EGU,  "F")
