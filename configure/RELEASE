@@ -24,6 +24,7 @@
 
 # Variables and paths to dependent modules:
 MODULES = /usr/local/epics/modules
+SPI = $(MODULES)/asynSPIDriver
 ASYN = $(MODULES)/asyn
 
 # If using the sequencer, point SNCSEQ at its top directory:

@@ -9,12 +9,12 @@
 
 #include <epicsEvent.h>
 
-#include "drvAsynSPI.h"
+#include "asynSPIDriver.h"
 
 #define P_TempCString "Temperature(C)" /* asynFloat64 */
 #define P_TempFString "Temperature(F)" /* asynFloat64 */
 
-class drvAsynMAX31865 : public drvAsynSPI {
+class drvAsynMAX31865 : public asynSPIDriver {
 
 public:
     drvAsynMAX31865(const char* portName, unsigned char spiBus,

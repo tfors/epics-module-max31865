@@ -16,7 +16,6 @@ LIBRARY_IOC += max31865
 DBD += max31865.dbd
 
 # specify all source files to be compiled and added to the library
-max31865_SRCS += drvAsynSPI.cpp
 max31865_SRCS += drvAsynMAX31865.cpp
 
 max31865_LIBS += $(EPICS_BASE_IOC_LIBS)

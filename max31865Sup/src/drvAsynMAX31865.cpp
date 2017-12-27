@@ -30,22 +30,22 @@
 
 static const char* driverName = "drvAsynMAX31865";
 
-static void pollTask(void *drvPvt);
+static void pollTask(void* drvPvt);
 
 drvAsynMAX31865::drvAsynMAX31865(const char* portName, unsigned char spiBus,
                                  unsigned char spiChipSel,
                                  unsigned char spiMode, unsigned char spiBits,
                                  unsigned int spiSpeed)
-    : drvAsynSPI(portName, spiBus, spiChipSel, spiMode, spiBits, spiSpeed,
-                 1, /* maxAddr */
-                    /* Interface mask */
-                 (asynFloat64Mask | asynDrvUserMask),
-                    /* Interrupt mask */
-                 (asynFloat64Mask),
-                 0, /* asynFlags (does not block and is not multi-device) */
-                 1, /* Autoconnect */
-                 0, /* Default priority */
-                 0) /* Default stack size */
+    : asynSPIDriver(portName, spiBus, spiChipSel, spiMode, spiBits, spiSpeed,
+                    1, /* maxAddr */
+                       /* Interface mask */
+                    (asynFloat64Mask | asynDrvUserMask),
+                       /* Interrupt mask */
+                    (asynFloat64Mask),
+                    0, /* asynFlags (does not block and is not multi-device) */
+                    1, /* Autoconnect */
+                    0, /* Default priority */
+                    0) /* Default stack size */
 {
     const char* functionName = "drvAsynMAX31865";
 
@@ -77,7 +77,7 @@ asynStatus drvAsynMAX31865::connect(asynUser* pasynUser)
     }
 
     /* Config MAX31865 to auto sample */
-    if (spi_wr_rd((unsigned char *)"\x80\xd0", rx, 2) != 0) {
+    if (spi_wr_rd((unsigned char*)"\x80\xd0", rx, 2) != 0) {
         return asynError;
     }
 
